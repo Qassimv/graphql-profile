@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphQL Profile</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="login-container" class="container">
+        <div class="login-box">
+            <h2>Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <input type="text" id="username" placeholder="Username or Email" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                <div id="error-message" class="error"></div>
+                <button type="submit">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="profile-container" class="container hidden">
+        <div class="profile-header">
+            <h2>Welcome, <span id="user-login"></span></h2>
+            <button id="logout-btn">Logout</button>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>XP Progress</h3>
+                <div id="xp-chart" class="chart"></div>
+            </div>
+            
+            <div class="stat-box">
+                <h3>Project Progress</h3>
+                <div id="progress-chart" class="chart"></div>
+            </div>
+            
+            <div class="stat-box">
+                <h3>Statistics</h3>
+                <div id="stats-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 
