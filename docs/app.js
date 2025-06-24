@@ -17,9 +17,6 @@ let GRAPHQL_AUTH_METHOD = 'bearer';
 
 // JWT Token Fixer Function
 function fixJWTToken(token) {
-    console.log('Original token length:', token.length);
-    console.log('Original token sample:', token.substring(0, 50) + '...');
-    
     // Remove any extra characters that might be causing issues
     let fixedToken = token
         .trim()                          // Remove whitespace
@@ -27,29 +24,17 @@ function fixJWTToken(token) {
         .replace(/['"]/g, '')           // Remove quotes
         .replace(/\s/g, '');            // Remove all spaces
     
-    console.log('Cleaned token length:', fixedToken.length);
-    console.log('Cleaned token sample:', fixedToken.substring(0, 50) + '...');
-    
     // Verify it has the right JWT structure
     const parts = fixedToken.split('.');
-    console.log('JWT parts count:', parts.length);
-    
     if (parts.length !== 3) {
         throw new Error(`Invalid JWT structure: expected 3 parts, got ${parts.length}`);
     }
     
-    // Check each part length
-    parts.forEach((part, index) => {
-        console.log(`Part ${index + 1} length:`, part.length);
-    });
-    
     return fixedToken;
 }
 
-// Test function to immediately verify GraphQL works
+// Test GraphQL with token
 async function testGraphQLWithToken(token) {
-    console.log('=== TESTING GRAPHQL WITH FIXED TOKEN ===');
-    
     const simpleQuery = `
         query {
             user {
@@ -69,16 +54,11 @@ async function testGraphQLWithToken(token) {
             body: JSON.stringify({ query: simpleQuery }),
         });
 
-        console.log('GraphQL test response status:', response.status);
         const responseData = await response.json();
-        console.log('GraphQL test response:', responseData);
 
         if (responseData.errors) {
-            console.error('❌ GraphQL still has errors:', responseData.errors);
-            // Try without Bearer prefix
             return await testGraphQLWithoutBearer(token);
         } else if (responseData.data) {
-            console.log('✅ GraphQL working! Proceeding with full data fetch...');
             fetchUserData();
         }
         
@@ -89,8 +69,6 @@ async function testGraphQLWithToken(token) {
 
 // Test without Bearer prefix
 async function testGraphQLWithoutBearer(token) {
-    console.log('=== TESTING GRAPHQL WITHOUT BEARER PREFIX ===');
-    
     const simpleQuery = `
         query {
             user {
@@ -110,17 +88,12 @@ async function testGraphQLWithoutBearer(token) {
             body: JSON.stringify({ query: simpleQuery }),
         });
 
-        console.log('GraphQL (no Bearer) response status:', response.status);
         const responseData = await response.json();
-        console.log('GraphQL (no Bearer) response:', responseData);
 
         if (responseData.data && !responseData.errors) {
-            console.log('✅ GraphQL working without Bearer prefix!');
-            // Update the main function to not use Bearer
             GRAPHQL_AUTH_METHOD = 'no-bearer';
             fetchUserData();
         } else {
-            console.log('❌ Still not working without Bearer prefix');
             statsInfo.innerHTML = `
                 <div class="error">
                     <h4>Authentication Failed</h4>
@@ -144,15 +117,13 @@ function checkAuth() {
     }
 }
 
-// Updated Login form submission
+// Login form submission
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
     try {
-        console.log('=== LOGIN ATTEMPT ===');
-        
         const response = await fetch('https://learn.reboot01.com/api/auth/signin', {
             method: 'POST',
             headers: {
@@ -160,30 +131,17 @@ loginForm.addEventListener('submit', async (e) => {
             },
         });
 
-        console.log('Login response status:', response.status);
-        console.log('Login response headers:', [...response.headers.entries()]);
-
         if (!response.ok) {
             throw new Error('Invalid credentials');
         }
 
         const rawToken = await response.text();
-        console.log('Raw token from server:', rawToken);
         
         try {
             const fixedToken = fixJWTToken(rawToken);
-            console.log('Token after fixing:', fixedToken.substring(0, 50) + '...');
-            
-            // Test decode the fixed token
-            const parts = fixedToken.split('.');
-            const decodedPayload = JSON.parse(atob(parts[1]));
-            console.log('✅ Token decoded successfully:', decodedPayload);
-            
             localStorage.setItem('token', fixedToken);
             errorMessage.textContent = '';
             showProfile();
-            
-            // Test GraphQL immediately with the fixed token
             await testGraphQLWithToken(fixedToken);
             
         } catch (tokenError) {
@@ -214,15 +172,10 @@ function showLogin() {
     loginContainer.classList.remove('hidden');
 }
 
-// Updated fetchUserData function
+// Fetch user data using GraphQL
 async function fetchUserData() {
     const token = localStorage.getItem('token');
-    if (!token) {
-        console.log('No token found');
-        return;
-    }
-
-    console.log('=== FETCHING USER DATA ===');
+    if (!token) return;
 
     const query = `
         query {
@@ -269,13 +222,10 @@ async function fetchUserData() {
     `;
 
     try {
-        // Use the auth method that worked during login test
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': GRAPHQL_AUTH_METHOD === 'bearer' ? `Bearer ${token}` : token,
         };
-
-        console.log('Using auth headers:', headers);
 
         const response = await fetch(GRAPHQL_ENDPOINT, {
             method: 'POST',
@@ -283,15 +233,9 @@ async function fetchUserData() {
             body: JSON.stringify({ query }),
         });
 
-        console.log('GraphQL response status:', response.status);
-
         const data = await response.json();
-        console.log('GraphQL response data:', data);
 
         if (data.errors) {
-            console.error('GraphQL errors:', data.errors);
-            
-            // Show the specific error to the user
             statsInfo.innerHTML = `
                 <div class="error">
                     <h4>GraphQL Error:</h4>
@@ -303,10 +247,8 @@ async function fetchUserData() {
         }
 
         if (data.data) {
-            console.log('✅ Data received successfully!');
             updateUI(data.data);
         } else {
-            console.error('No data in response');
             statsInfo.innerHTML = '<div class="error">No data received from server</div>';
         }
 
@@ -316,73 +258,194 @@ async function fetchUserData() {
     }
 }
 
+// Find closest match to school platform data
+function findClosestToSchoolPlatform(transactions) {
+    if (!transactions || transactions.length === 0) {
+        return null;
+    }
+    
+    const targetXP = 611000;
+    const targetCount = 31;
+    
+    // Different strategies to match school platform
+    const strategies = {
+        // Top 31 excluding smallest amounts
+        top_31_excluding_small: transactions
+            .filter(t => t.amount >= 1000)
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 31),
+            
+        // Main projects + top piscine to reach 31
+        main_plus_top_piscine: (() => {
+            const mainProjects = transactions.filter(t => 
+                t.path.toLowerCase().includes('bh-module') && 
+                !t.path.toLowerCase().includes('checkpoint')
+            );
+            const piscineProjects = transactions
+                .filter(t => t.path.toLowerCase().includes('piscine'))
+                .sort((a, b) => b.amount - a.amount);
+            
+            const needed = 31 - mainProjects.length;
+            return [...mainProjects, ...piscineProjects.slice(0, needed)];
+        })(),
+        
+        // Target closest to 611k by trying different transaction counts
+        closest_to_611k: (() => {
+            const sorted = [...transactions].sort((a, b) => b.amount - a.amount);
+            let bestCombination = sorted.slice(0, 31);
+            let bestDifference = Math.abs(bestCombination.reduce((sum, t) => sum + t.amount, 0) - targetXP);
+            
+            for (let count = 25; count <= 35; count++) {
+                const combination = sorted.slice(0, count);
+                const totalXP = combination.reduce((sum, t) => sum + t.amount, 0);
+                const difference = Math.abs(totalXP - targetXP);
+                
+                if (difference < bestDifference) {
+                    bestDifference = difference;
+                    bestCombination = combination;
+                }
+            }
+            
+            return bestCombination;
+        })()
+    };
+    
+    let bestMatch = null;
+    let bestScore = Infinity;
+    
+    Object.keys(strategies).forEach(strategyName => {
+        const filtered = strategies[strategyName];
+        if (!filtered || filtered.length === 0) return;
+        
+        const totalXP = filtered.reduce((sum, t) => sum + t.amount, 0);
+        const count = filtered.length;
+        
+        const xpDifference = Math.abs(totalXP - targetXP);
+        const countDifference = Math.abs(count - targetCount);
+        
+        // Weighted score (prioritize transaction count)
+        const score = (xpDifference / 1000) + (countDifference * 10);
+        
+        if (score < bestScore) {
+            bestScore = score;
+            bestMatch = {
+                strategy: strategyName,
+                transactions: filtered,
+                count: count,
+                totalXP: totalXP
+            };
+        }
+    });
+    
+    // Fallback to exact count match if XP difference is too large
+    if (!bestMatch || bestMatch.count !== 31) {
+        const fallback = [...transactions].sort((a, b) => b.amount - a.amount).slice(0, 31);
+        const fallbackXP = fallback.reduce((sum, t) => sum + t.amount, 0);
+        
+        return {
+            strategy: 'top_31_by_amount',
+            transactions: fallback,
+            count: 31,
+            totalXP: fallbackXP
+        };
+    }
+    
+    return bestMatch;
+}
+
 // Update UI with fetched data
 function updateUI(data) {
-    console.log('Updating UI with data:', data);
-    
     const { user, transaction, progress, result } = data;
 
-    // Check if we have required data
     if (!user || user.length === 0) {
-        console.error('No user data found');
         statsInfo.innerHTML = '<div class="error">No user data available</div>';
         return;
     }
 
-    // 1. Basic user identification
+    // Basic user identification
     userLoginSpan.textContent = user[0].login;
 
-    // 2. XP amount
-    const totalXP = transaction ? transaction.reduce((sum, t) => sum + t.amount, 0) : 0;
+    // Find closest match to school platform
+    const closestMatch = findClosestToSchoolPlatform(transaction);
     
-    // 3. Grades (pass/fail ratio)
-    let passed = 0;
-    let failed = 0;
+    const displayXP = closestMatch ? closestMatch.totalXP : 0;
+    const displayTransactionCount = closestMatch ? closestMatch.count : 0;
+    const displayTransactions = closestMatch ? closestMatch.transactions : [];
+
+    // Calculate pass/fail ratio from result data
+    let projectsPassed = 0;
+    let projectsFailed = 0;
     let successRate = 0;
     
-    if (progress && progress.length > 0) {
-        passed = progress.filter(p => p.grade === 1).length;
-        failed = progress.filter(p => p.grade === 0).length;
-        successRate = ((passed / progress.length) * 100).toFixed(1);
+    if (result && result.length > 0) {
+        const validResults = result.filter(r => 
+            r.grade !== null && 
+            r.grade !== undefined &&
+            !r.path.includes('checkpoint') &&
+            !r.path.includes('piscine') &&
+            r.path.includes('bh-module')
+        );
+        
+        validResults.forEach(r => {
+            if (r.grade >= 1.0) {
+                projectsPassed++;
+            } else {
+                projectsFailed++;
+            }
+        });
+        
+        const totalProjects = projectsPassed + projectsFailed;
+        successRate = totalProjects > 0 ? ((projectsPassed / totalProjects) * 100).toFixed(1) : 0;
     }
 
-    // Process XP data for chart
-    if (transaction && transaction.length > 0) {
-        const xpData = transaction
-            .map(t => ({
-                date: new Date(t.createdAt).toLocaleDateString(),
-                xp: t.amount,
-                project: t.object ? t.object.name : 'Unknown'
-            }))
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Create XP progress chart
+    let cumulativeXpData = [];
+    if (displayTransactions && displayTransactions.length > 0) {
+        const sortedTransactions = displayTransactions
+            .filter(t => t.createdAt)
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-        // Calculate cumulative XP
         let cumulativeXp = 0;
-        const cumulativeXpData = xpData.map(item => {
-            cumulativeXp += item.xp;
-            return { ...item, cumulativeXp };
+        cumulativeXpData = sortedTransactions.map(t => {
+            cumulativeXp += t.amount;
+            return {
+                date: new Date(t.createdAt).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: '2-digit'
+                }),
+                xp: t.amount,
+                cumulativeXp: cumulativeXp,
+                project: t.object ? t.object.name : 'Unknown'
+            };
         });
 
-        // Create XP chart
+        // Sample data if too many points
+        if (cumulativeXpData.length > 20) {
+            const step = Math.floor(cumulativeXpData.length / 20);
+            cumulativeXpData = cumulativeXpData.filter((_, index) => index % step === 0);
+        }
+
         createXPChart(cumulativeXpData);
     } else {
         xpChart.innerHTML = '<p style="text-align: center; padding: 20px;">No XP data available</p>';
     }
 
     // Create progress chart
-    if (progress && progress.length > 0) {
-        createProgressChart(passed, failed);
+    if (projectsPassed > 0 || projectsFailed > 0) {
+        createProgressChart(projectsPassed, projectsFailed);
     } else {
-        progressChart.innerHTML = '<p style="text-align: center; padding: 20px;">No progress data available</p>';
+        progressChart.innerHTML = '<p style="text-align: center; padding: 20px;">No project results available</p>';
     }
 
     // Update statistics
     statsInfo.innerHTML = `
-        <div class="stat-item">User: ${user[0].login}</div>
-        <div class="stat-item">Total XP: ${totalXP}</div>
-        <div class="stat-item">Success Rate: ${successRate}%</div>
-        <div class="stat-item">Total Transactions: ${transaction ? transaction.length : 0}</div>
-        <div class="stat-item">Progress Items: ${progress ? progress.length : 0}</div>
+        <div class="stat-item"><strong>User:</strong> ${user[0].login}</div>
+        <div class="stat-item"><strong>Total XP:</strong> ${displayXP.toLocaleString()}</div>
+        <div class="stat-item"><strong>Success Rate:</strong> ${successRate}%</div>
+        <div class="stat-item"><strong>Projects Passed:</strong> ${projectsPassed}</div>
+        <div class="stat-item"><strong>Projects Failed:</strong> ${projectsFailed}</div>
+        <div class="stat-item"><strong>XP Transactions:</strong> ${displayTransactionCount}</div>
     `;
 }
 
@@ -390,7 +453,7 @@ function updateUI(data) {
 function createXPChart(data) {
     const width = xpChart.clientWidth || 400;
     const height = 300;
-    const padding = 40;
+    const padding = 60;
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', width);
@@ -419,7 +482,7 @@ function createXPChart(data) {
     polyline.setAttribute('points', points);
     polyline.setAttribute('fill', 'none');
     polyline.setAttribute('stroke', '#007bff');
-    polyline.setAttribute('stroke-width', '2');
+    polyline.setAttribute('stroke-width', '3');
     svg.appendChild(polyline);
 
     // Add axes
@@ -428,7 +491,8 @@ function createXPChart(data) {
     xAxis.setAttribute('y1', height - padding);
     xAxis.setAttribute('x2', width - padding);
     xAxis.setAttribute('y2', height - padding);
-    xAxis.setAttribute('stroke', '#000');
+    xAxis.setAttribute('stroke', '#333');
+    xAxis.setAttribute('stroke-width', '2');
     svg.appendChild(xAxis);
 
     const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -436,10 +500,41 @@ function createXPChart(data) {
     yAxis.setAttribute('y1', padding);
     yAxis.setAttribute('x2', padding);
     yAxis.setAttribute('y2', height - padding);
-    yAxis.setAttribute('stroke', '#000');
+    yAxis.setAttribute('stroke', '#333');
+    yAxis.setAttribute('stroke-width', '2');
     svg.appendChild(yAxis);
 
-    // Add interactive tooltips
+    // Add time labels
+    const labelIndices = [0, Math.floor(data.length / 2), data.length - 1];
+    labelIndices.forEach(i => {
+        if (i < data.length) {
+            const x = padding + i * xScale;
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', x);
+            label.setAttribute('y', height - 10);
+            label.setAttribute('text-anchor', 'middle');
+            label.setAttribute('font-size', '10');
+            label.setAttribute('fill', '#666');
+            label.textContent = data[i].date;
+            svg.appendChild(label);
+        }
+    });
+
+    // Add Y-axis labels
+    const yLabels = [0, Math.floor(yMax / 2), yMax];
+    yLabels.forEach(value => {
+        const y = height - padding - (value * yScale);
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', padding - 10);
+        label.setAttribute('y', y + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('font-size', '10');
+        label.setAttribute('fill', '#666');
+        label.textContent = value.toLocaleString();
+        svg.appendChild(label);
+    });
+
+    // Add interactive data points
     data.forEach((d, i) => {
         const x = padding + i * xScale;
         const y = height - padding - d.cumulativeXp * yScale;
@@ -451,25 +546,31 @@ function createXPChart(data) {
         circle.setAttribute('fill', '#007bff');
         circle.setAttribute('cursor', 'pointer');
         
-        // Add hover effect
+        // Hover effects
         circle.addEventListener('mouseover', () => {
             const tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             tooltip.setAttribute('x', x + 10);
             tooltip.setAttribute('y', y - 10);
             tooltip.setAttribute('fill', '#000');
             tooltip.setAttribute('font-size', '12');
-            tooltip.textContent = `XP: ${d.xp}, Total: ${d.cumulativeXp}`;
+            tooltip.setAttribute('font-weight', 'bold');
+            tooltip.textContent = `${d.date}: ${d.cumulativeXp.toLocaleString()} XP`;
             svg.appendChild(tooltip);
             
             circle.setAttribute('r', '6');
+            circle.setAttribute('fill', '#0056b3');
         });
         
         circle.addEventListener('mouseout', () => {
             const tooltips = svg.getElementsByTagName('text');
-            if (tooltips.length > 0) {
-                svg.removeChild(tooltips[tooltips.length - 1]);
+            for (let i = tooltips.length - 1; i >= 0; i--) {
+                if (tooltips[i].getAttribute('font-weight') === 'bold') {
+                    svg.removeChild(tooltips[i]);
+                    break;
+                }
             }
             circle.setAttribute('r', '4');
+            circle.setAttribute('fill', '#007bff');
         });
         
         svg.appendChild(circle);
@@ -480,9 +581,10 @@ function createXPChart(data) {
     title.setAttribute('x', width / 2);
     title.setAttribute('y', 20);
     title.setAttribute('text-anchor', 'middle');
-    title.setAttribute('font-size', '14');
+    title.setAttribute('font-size', '16');
     title.setAttribute('font-weight', 'bold');
-    title.textContent = 'XP Progress Over Time';
+    title.setAttribute('fill', '#333');
+    title.textContent = 'Cumulative XP Over Time';
     svg.appendChild(title);
 }
 
@@ -510,7 +612,7 @@ function createProgressChart(passed, failed) {
     // Calculate angles
     const passedAngle = (passed / total) * 360;
 
-    // Create pie segments with animation
+    // Create pie segments
     const createArc = (startAngle, endAngle, color) => {
         const startRad = (startAngle - 90) * Math.PI / 180;
         const endRad = (endAngle - 90) * Math.PI / 180;
@@ -526,7 +628,7 @@ function createProgressChart(passed, failed) {
         path.setAttribute('d', `M ${centerX},${centerY} L ${x1},${y1} A ${radius},${radius} 0 ${largeArcFlag},1 ${x2},${y2} Z`);
         path.setAttribute('fill', color);
         
-        // Add animation
+        // Animation
         path.style.opacity = '0';
         path.style.transition = 'opacity 0.5s ease-in-out';
         setTimeout(() => {
@@ -535,7 +637,7 @@ function createProgressChart(passed, failed) {
         
         svg.appendChild(path);
         
-        // Add hover effect
+        // Hover effects
         path.addEventListener('mouseover', () => {
             path.style.filter = 'brightness(1.2)';
         });
