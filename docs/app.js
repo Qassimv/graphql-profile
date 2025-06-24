@@ -609,48 +609,107 @@ function createProgressChart(passed, failed) {
         return;
     }
 
-    // Calculate angles
-    const passedAngle = (passed / total) * 360;
-
-    // Create pie segments
-    const createArc = (startAngle, endAngle, color) => {
-        const startRad = (startAngle - 90) * Math.PI / 180;
-        const endRad = (endAngle - 90) * Math.PI / 180;
-
-        const x1 = centerX + radius * Math.cos(startRad);
-        const y1 = centerY + radius * Math.sin(startRad);
-        const x2 = centerX + radius * Math.cos(endRad);
-        const y2 = centerY + radius * Math.sin(endRad);
-
-        const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
-
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', `M ${centerX},${centerY} L ${x1},${y1} A ${radius},${radius} 0 ${largeArcFlag},1 ${x2},${y2} Z`);
-        path.setAttribute('fill', color);
+    // Handle 100% success rate (failed = 0)
+    if (failed === 0) {
+        // Create a full circle for 100% pass rate
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', centerX);
+        circle.setAttribute('cy', centerY);
+        circle.setAttribute('r', radius);
+        circle.setAttribute('fill', '#28a745');
+        circle.setAttribute('stroke', '#1e7e34');
+        circle.setAttribute('stroke-width', '2');
         
         // Animation
-        path.style.opacity = '0';
-        path.style.transition = 'opacity 0.5s ease-in-out';
+        circle.style.opacity = '0';
+        circle.style.transition = 'opacity 0.5s ease-in-out';
         setTimeout(() => {
-            path.style.opacity = '1';
+            circle.style.opacity = '1';
         }, 100);
         
-        svg.appendChild(path);
+        svg.appendChild(circle);
         
-        // Hover effects
-        path.addEventListener('mouseover', () => {
-            path.style.filter = 'brightness(1.2)';
+        // Hover effect
+        circle.addEventListener('mouseover', () => {
+            circle.style.filter = 'brightness(1.2)';
         });
         
-        path.addEventListener('mouseout', () => {
-            path.style.filter = 'brightness(1)';
+        circle.addEventListener('mouseout', () => {
+            circle.style.filter = 'brightness(1)';
         });
-    };
+        
+    } else if (passed === 0) {
+        // Handle 0% success rate (all failed)
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', centerX);
+        circle.setAttribute('cy', centerY);
+        circle.setAttribute('r', radius);
+        circle.setAttribute('fill', '#dc3545');
+        circle.setAttribute('stroke', '#c82333');
+        circle.setAttribute('stroke-width', '2');
+        
+        // Animation
+        circle.style.opacity = '0';
+        circle.style.transition = 'opacity 0.5s ease-in-out';
+        setTimeout(() => {
+            circle.style.opacity = '1';
+        }, 100);
+        
+        svg.appendChild(circle);
+        
+        // Hover effect
+        circle.addEventListener('mouseover', () => {
+            circle.style.filter = 'brightness(1.2)';
+        });
+        
+        circle.addEventListener('mouseout', () => {
+            circle.style.filter = 'brightness(1)';
+        });
+        
+    } else {
+        // Normal pie chart with both passed and failed
+        const passedAngle = (passed / total) * 360;
 
-    createArc(0, passedAngle, '#28a745');
-    createArc(passedAngle, 360, '#dc3545');
+        // Create pie segments
+        const createArc = (startAngle, endAngle, color) => {
+            const startRad = (startAngle - 90) * Math.PI / 180;
+            const endRad = (endAngle - 90) * Math.PI / 180;
 
-    // Add labels
+            const x1 = centerX + radius * Math.cos(startRad);
+            const y1 = centerY + radius * Math.sin(startRad);
+            const x2 = centerX + radius * Math.cos(endRad);
+            const y2 = centerY + radius * Math.sin(endRad);
+
+            const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${centerX},${centerY} L ${x1},${y1} A ${radius},${radius} 0 ${largeArcFlag},1 ${x2},${y2} Z`);
+            path.setAttribute('fill', color);
+            
+            // Animation
+            path.style.opacity = '0';
+            path.style.transition = 'opacity 0.5s ease-in-out';
+            setTimeout(() => {
+                path.style.opacity = '1';
+            }, 100);
+            
+            svg.appendChild(path);
+            
+            // Hover effects
+            path.addEventListener('mouseover', () => {
+                path.style.filter = 'brightness(1.2)';
+            });
+            
+            path.addEventListener('mouseout', () => {
+                path.style.filter = 'brightness(1)';
+            });
+        };
+
+        createArc(0, passedAngle, '#28a745');
+        createArc(passedAngle, 360, '#dc3545');
+    }
+
+    // Add labels (same for all cases)
     const addLabel = (text, x, y, fontSize = '14') => {
         const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         label.setAttribute('x', x);
