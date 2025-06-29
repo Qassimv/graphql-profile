@@ -378,6 +378,7 @@ async function fetchUserData() {
                 updateUIWithExactMatch({
                     user: userData.data.user,
                     transactions: recent31,
+                    xpTransactions: bestXPMatch,
                     displayXP: recent31XP,
                     displayCount: 31,
                     progress: userData.data.progress,
@@ -388,6 +389,7 @@ async function fetchUserData() {
                 updateUIWithExactMatch({
                     user: userData.data.user,
                     transactions: finalTransactions,
+                    xpTransactions: bestXPMatch,
                     displayXP: finalXP,
                     displayCount: finalCount,
                     progress: userData.data.progress,
@@ -398,6 +400,7 @@ async function fetchUserData() {
             updateUIWithExactMatch({
                 user: userData.data.user,
                 transactions: finalTransactions,
+                 xpTransactions: bestXPMatch,
                 displayXP: finalXP,
                 displayCount: finalCount,
                 progress: userData.data.progress,
@@ -449,7 +452,7 @@ function updateUIWithExactMatch(data) {
     }
 
     // Create XP progress chart (only use XP transactions for the chart)
-    const xpTransactions = transactions.filter(t => t.type === 'xp' && t.amount > 0);
+    const xpTransactions = (data.xpTransactions && data.xpTransactions.length > 0) ? data.xpTransactions : transactions.filter(t => t.type === 'xp' && t.amount > 0);
     let cumulativeXpData = [];
     
     console.log('XP transactions for chart:', xpTransactions.length);
@@ -539,8 +542,8 @@ function createXPChart(data) {
     xpChart.innerHTML = '';
     xpChart.appendChild(svg);
 
-    if (data.length === 0) {
-        xpChart.innerHTML = '<p style="text-align: center; padding: 20px;">No XP data to display</p>';
+    if (!data || data.length === 0) {
+        xpChart.innerHTML = '<p style="text-align: center; padding: 20px;">No XP data available</p>';
         return;
     }
 
